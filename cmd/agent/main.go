@@ -16,9 +16,9 @@ func main() {
 	}
 
 	logger.Log.Info("Create client")
-	c := client.NewClient(p.ListenAddr)
+	c := client.NewClient(p.ListenAddr, p.Key)
 	logger.Log.Info("Create agent")
-	a := agent.NewAgent(c, p.ReportInterval, p.PollInterval)
+	a := agent.NewAgent(c, p.ReportInterval, p.PollInterval, p.RateLimit)
 	logger.Log.Info("Agent start")
 	err := a.Run()
 	if err != nil {

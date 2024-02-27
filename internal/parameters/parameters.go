@@ -7,19 +7,25 @@ import (
 )
 
 type AgentParameters struct {
-	ListenAddr                   string
-	ReportInterval, PollInterval uint
+	ListenAddr, Key                         string
+	ReportInterval, PollInterval, RateLimit uint
 }
 
 func ParseFlagsAgent() (p AgentParameters) {
 	f := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	f.StringVar(&p.ListenAddr, "a", "localhost:8080", "address and port to server")
+	f.StringVar(&p.Key, "k", "", "hash key")
 	f.UintVar(&p.ReportInterval, "r", 10, "report interval")
 	f.UintVar(&p.PollInterval, "p", 2, "poll interval")
+	f.UintVar(&p.RateLimit, "l", 10, "rate limit")
 	f.Parse(os.Args[1:])
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
 		p.ListenAddr = envAddr
+	}
+
+	if envKey := os.Getenv("KEY"); envKey != "" {
+		p.Key = envKey
 	}
 
 	if envRI := os.Getenv("REPORT_INTERVAL"); envRI != "" {
@@ -38,12 +44,20 @@ func ParseFlagsAgent() (p AgentParameters) {
 		}
 	}
 
+	if envRL := os.Getenv("RATE_LIMIT"); envRL != "" {
+		intRL, err := strconv.ParseUint(envRL, 10, 32)
+
+		if err == nil {
+			p.RateLimit = uint(intRL)
+		}
+	}
+
 	return
 }
 
 type ServerParameters struct {
 	FlagRunAddr, FileStoragePath string
-	DataBaseDSN                  string
+	DataBaseDSN, Key             string
 	StoreInterval                uint
 	Restore                      bool
 }
@@ -51,6 +65,7 @@ type ServerParameters struct {
 func ParseFlagsServer() (p ServerParameters) {
 	f := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	f.StringVar(&p.FlagRunAddr, "a", "localhost:8080", "address and port to run server")
+	f.StringVar(&p.Key, "k", "", "hash key")
 	f.StringVar(&p.FileStoragePath, "f", "/tmp/metrics-db.json", "path to save storage")
 	f.StringVar(
 		&p.DataBaseDSN,
@@ -64,6 +79,10 @@ func ParseFlagsServer() (p ServerParameters) {
 
 	if envAddr := os.Getenv("ADDRESS"); envAddr != "" {
 		p.FlagRunAddr = envAddr
+	}
+
+	if envKey := os.Getenv("KEY"); envKey != "" {
+		p.Key = envKey
 	}
 
 	if envSP := os.Getenv("FILE_STORAGE_PATH"); envSP != "" {

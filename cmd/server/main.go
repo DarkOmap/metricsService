@@ -62,7 +62,7 @@ func main() {
 	logger.Log.Info("Create handlers")
 	sh := handlers.NewServiceHandlers(ms)
 	logger.Log.Info("Create routers")
-	r := handlers.ServiceRouter(sh)
+	r := handlers.ServiceRouter(sh, p.Key)
 
 	logger.Log.Info("Create server")
 	httpServer := &http.Server{

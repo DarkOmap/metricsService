@@ -2,6 +2,8 @@ package memstats
 
 import (
 	"runtime"
+
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 func GetMemStatsForServer(ms *runtime.MemStats) map[string]float64 {
@@ -33,5 +35,12 @@ func GetMemStatsForServer(ms *runtime.MemStats) map[string]float64 {
 		"StackSys":      float64(ms.StackSys),
 		"Sys":           float64(ms.Sys),
 		"TotalAlloc":    float64(ms.TotalAlloc),
+	}
+}
+
+func GetVirtualMemoryForServer(vm *mem.VirtualMemoryStat) map[string]float64 {
+	return map[string]float64{
+		"TotalMemory": float64(vm.Total),
+		"FreeMemory":  float64(vm.Free),
 	}
 }

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -96,13 +97,18 @@ func Test_retry2(t *testing.T) {
 		}
 
 		var errConn error = &pgconn.PgError{Code: "08000"}
+		var mu sync.RWMutex
 
 		go func() {
 			time.Sleep(5 * time.Second)
+			mu.Lock()
+			defer mu.Unlock()
 			errConn = nil
 		}()
 
 		_, err := retry2[*int](context.Background(), rp, func() (*int, error) {
+			mu.RLock()
+			defer mu.RUnlock()
 			return nil, errConn
 		})
 

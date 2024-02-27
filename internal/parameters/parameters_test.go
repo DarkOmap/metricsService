@@ -14,6 +14,8 @@ func TestParseFlagsAgent(t *testing.T) {
 		wantListenAddr     string
 		wantReportInterval uint
 		wantPollInterval   uint
+		wantKey            string
+		wantRL             uint
 	}{
 		{
 			name:               "test env",
@@ -21,6 +23,8 @@ func TestParseFlagsAgent(t *testing.T) {
 			wantListenAddr:     "testEnv",
 			wantReportInterval: 10,
 			wantPollInterval:   10,
+			wantKey:            "key",
+			wantRL:             5,
 		},
 		{
 			name:               "test flags",
@@ -28,6 +32,8 @@ func TestParseFlagsAgent(t *testing.T) {
 			wantListenAddr:     "testFlags",
 			wantReportInterval: 100,
 			wantPollInterval:   100,
+			wantKey:            "key",
+			wantRL:             5,
 		},
 		{
 			name:               "test default",
@@ -35,6 +41,8 @@ func TestParseFlagsAgent(t *testing.T) {
 			wantListenAddr:     "localhost:8080",
 			wantReportInterval: 10,
 			wantPollInterval:   2,
+			wantKey:            "",
+			wantRL:             10,
 		},
 	}
 	for _, tt := range tests {
@@ -58,10 +66,12 @@ func setEnv() {
 	os.Setenv("ADDRESS", "testEnv")
 	os.Setenv("REPORT_INTERVAL", "10")
 	os.Setenv("POLL_INTERVAL", "10")
+	os.Setenv("KEY", "key")
+	os.Setenv("RATE_LIMIT", "5")
 }
 
 func setFlags() {
-	os.Args = []string{"test", "-a=testFlags", "-r=100", "-p=100"}
+	os.Args = []string{"test", "-a=testFlags", "-r=100", "-p=100", "-k=key", "-l=5"}
 }
 
 func delParameters() {
@@ -102,12 +112,14 @@ func setEnvForServer() ServerParameters {
 		DataBaseDSN:     "test",
 		StoreInterval:   10,
 		Restore:         true,
+		Key:             "key",
 	}
 	os.Setenv("ADDRESS", sp.FlagRunAddr)
 	os.Setenv("FILE_STORAGE_PATH", sp.FileStoragePath)
 	os.Setenv("DATABASE_DSN", sp.DataBaseDSN)
 	os.Setenv("STORE_INTERVAL", "10")
 	os.Setenv("RESTORE", "true")
+	os.Setenv("KEY", sp.Key)
 
 	return sp
 }
@@ -120,6 +132,7 @@ func setFlagsForServer() ServerParameters {
 		"-d=testdb",
 		"-i=10",
 		"-r=false",
+		"-k=key",
 	}
 
 	return ServerParameters{
@@ -128,6 +141,7 @@ func setFlagsForServer() ServerParameters {
 		DataBaseDSN:     "testdb",
 		StoreInterval:   10,
 		Restore:         false,
+		Key:             "key",
 	}
 }
 
@@ -138,5 +152,6 @@ func getDefaultParametersForServer() ServerParameters {
 		DataBaseDSN:     "",
 		StoreInterval:   300,
 		Restore:         true,
+		Key:             "",
 	}
 }

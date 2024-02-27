@@ -69,7 +69,7 @@ func TestServiceHandlers_updateByJSON(t *testing.T) {
 	ms.On("UpdateByMetrics", *models.NewMetricsForGauge("test", 1.1)).Return(models.NewMetricsForGauge("test", 1.1), nil)
 	ms.On("UpdateByMetrics", *models.NewMetricsForCounter("test", 1)).Return(models.NewMetricsForCounter("test", 1), nil)
 	sh := NewServiceHandlers(ms)
-	r := ServiceRouter(sh)
+	r := ServiceRouter(sh, "")
 
 	srv := httptest.NewServer(r)
 	defer srv.Close()
@@ -164,7 +164,7 @@ func TestServiceHandlers_updateByURL(t *testing.T) {
 	ms.On("UpdateByMetrics", *models.NewMetricsForGauge("test", 12)).Return(models.NewMetricsForGauge("test", 12), nil)
 	ms.On("UpdateByMetrics", *models.NewMetricsForCounter("test", 12)).Return(models.NewMetricsForCounter("test", 12), nil)
 	sh := NewServiceHandlers(ms)
-	r := ServiceRouter(sh)
+	r := ServiceRouter(sh, "")
 
 	srv := httptest.NewServer(r)
 	defer srv.Close()
@@ -254,7 +254,7 @@ func TestServiceHandlers_valueByURL(t *testing.T) {
 	ms.On("ValueByMetrics", *testCounter).Return(models.NewMetricsForCounter("test", 1), nil)
 
 	sh := NewServiceHandlers(ms)
-	r := ServiceRouter(sh)
+	r := ServiceRouter(sh, "")
 
 	srv := httptest.NewServer(r)
 	defer srv.Close()
@@ -329,7 +329,7 @@ func TestServiceHandlers_all(t *testing.T) {
 	ms.On("GetAllGauge").Return(map[string]storage.Gauge{"test": 1.1}, nil)
 	ms.On("GetAllCounter").Return(map[string]storage.Counter{"test": 1}, nil)
 	sh := NewServiceHandlers(ms)
-	r := ServiceRouter(sh)
+	r := ServiceRouter(sh, "")
 
 	srv := httptest.NewServer(r)
 	defer srv.Close()
@@ -426,7 +426,7 @@ func TestServiceHandlers_valueByJSON(t *testing.T) {
 	ms.On("ValueByMetrics", *testCounter).Return(models.NewMetricsForCounter("test", 1), nil)
 
 	sh := NewServiceHandlers(ms)
-	r := ServiceRouter(sh)
+	r := ServiceRouter(sh, "")
 
 	srv := httptest.NewServer(r)
 	defer srv.Close()
@@ -506,7 +506,7 @@ func TestServiceHandlers_valueByJSON(t *testing.T) {
 func TestServiceHandlers_ping(t *testing.T) {
 	ms := new(StorageMockedObject)
 	sh := NewServiceHandlers(ms)
-	r := ServiceRouter(sh)
+	r := ServiceRouter(sh, "")
 
 	srv := httptest.NewServer(r)
 	defer srv.Close()

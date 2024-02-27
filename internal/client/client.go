@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DarkOmap/metricsService/internal/compresses"
+	"github.com/DarkOmap/metricsService/internal/hasher"
 	"github.com/DarkOmap/metricsService/internal/models"
 	"github.com/go-resty/resty/v2"
 )
@@ -16,6 +17,7 @@ import (
 type Client struct {
 	addr        string
 	restyClient *resty.Client
+	hasher      hasher.Hasher
 }
 
 func (c *Client) SendGauge(ctx context.Context, name string, value float64) error {
@@ -31,6 +33,7 @@ func (c *Client) SendGauge(ctx context.Context, name string, value float64) erro
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetContext(ctx)
+	c.hasher.HashingRequest(req, b)
 	resp, err := req.Post("http://" + c.addr + "/update")
 
 	if err != nil {
@@ -57,6 +60,7 @@ func (c *Client) SendCounter(ctx context.Context, name string, delta int64) erro
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetContext(ctx)
+	c.hasher.HashingRequest(req, b)
 	resp, err := req.Post("http://" + c.addr + "/update")
 
 	if err != nil {
@@ -83,7 +87,7 @@ func (c *Client) SendBatch(ctx context.Context, batch map[string]float64) error 
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetContext(ctx)
-
+	c.hasher.HashingRequest(req, b)
 	resp, err := req.Post("http://" + c.addr + "/updates")
 
 	if err != nil {
@@ -97,7 +101,7 @@ func (c *Client) SendBatch(ctx context.Context, batch map[string]float64) error 
 	return nil
 }
 
-func NewClient(addr string) *Client {
+func NewClient(addr, key string) *Client {
 	client := resty.New().
 		AddRetryCondition(func(r *resty.Response, err error) bool {
 			return errors.Is(err, syscall.ECONNREFUSED)
@@ -105,5 +109,5 @@ func NewClient(addr string) *Client {
 		SetRetryCount(3).
 		SetRetryWaitTime(1 * time.Second).
 		SetRetryMaxWaitTime(9 * time.Second)
-	return &Client{addr, client}
+	return &Client{addr, client, hasher.NewHasher([]byte(key))}
 }

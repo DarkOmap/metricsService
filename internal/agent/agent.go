@@ -13,18 +13,29 @@ import (
 	"github.com/DarkOmap/metricsService/internal/client"
 	"github.com/DarkOmap/metricsService/internal/logger"
 	"github.com/DarkOmap/metricsService/internal/memstats"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 type Agent struct {
-	reportInterval, pollInterval uint
-	client                       *client.Client
-	pollCount                    atomic.Int64
-	ms                           runtime.MemStats
+	reportInterval, pollInterval, rateLimit uint
+	client                                  *client.Client
+	pollCount                               atomic.Int64
+	ms                                      runtime.MemStats
+	vm                                      *mem.VirtualMemoryStat
+	CPUutilization                          float64
 }
 
 func (a *Agent) Run() error {
+	jobs := make(chan func() error, a.rateLimit)
+	defer close(jobs)
+
+	for w := uint(1); w <= a.rateLimit; w++ {
+		go worker(jobs)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -35,7 +46,7 @@ func (a *Agent) Run() error {
 		for {
 			select {
 			case <-time.After(time.Duration(a.reportInterval) * time.Second):
-				a.sendReport(egCtx)
+				a.sendReport(egCtx, jobs)
 			case <-egCtx.Done():
 				logger.Log.Info("Send report done")
 				return nil
@@ -57,6 +68,34 @@ func (a *Agent) Run() error {
 		}
 	})
 
+	eg.Go(func() error {
+		logger.Log.Info("Read virtual memory start")
+		for {
+			select {
+			case <-time.After(time.Duration(a.pollInterval) * time.Second):
+				var err error
+				a.vm, err = mem.VirtualMemory()
+
+				if err != nil {
+					return err
+				}
+
+				CPUutilization, err := cpu.Percent(0, false)
+
+				if err != nil {
+					return err
+				}
+
+				a.CPUutilization = CPUutilization[0]
+
+				a.pollCount.Add(1)
+			case <-ctx.Done():
+				logger.Log.Info("Read virtual memory done")
+				return nil
+			}
+		}
+	})
+
 	if err := eg.Wait(); err != nil {
 		logger.Log.Error("Problem with working agent", zap.Error(err))
 		return fmt.Errorf("problem with working agent: %w", err)
@@ -65,32 +104,49 @@ func (a *Agent) Run() error {
 	return nil
 }
 
-func (a *Agent) sendReport(ctx context.Context) {
-	msForServer := memstats.GetMemStatsForServer(&a.ms)
-	msForServer["RandomValue"] = rand.Float64()
+func (a *Agent) sendReport(ctx context.Context, jobs chan<- func() error) {
+	jobs <- func() error {
+		msForServer := memstats.GetMemStatsForServer(&a.ms)
+		msForServer["RandomValue"] = rand.Float64()
 
-	err := a.client.SendBatch(ctx, msForServer)
-
-	if err != nil {
-		logger.Log.Warn(
-			"Push memstats",
-			zap.Error(err),
-		)
+		return a.client.SendBatch(ctx, msForServer)
 	}
 
-	err = a.client.SendCounter(ctx, "PollCount", a.pollCount.Load())
+	jobs <- func() error {
+		return a.client.SendCounter(ctx, "PollCount", a.pollCount.Load())
+	}
 
-	if err != nil {
-		logger.Log.Warn(
-			"Error on sending poll count",
-			zap.Int64("value", a.pollCount.Load()),
-			zap.Error(err),
-		)
+	jobs <- func() error {
+		vmForServer := memstats.GetVirtualMemoryForServer(a.vm)
+
+		return a.client.SendBatch(ctx, vmForServer)
+	}
+
+	jobs <- func() error {
+		return a.client.SendBatch(ctx, map[string]float64{"CPUutilization1": a.CPUutilization})
 	}
 }
 
-func NewAgent(client *client.Client, reportInterval, pollInterval uint) (a *Agent) {
-	a = &Agent{reportInterval: reportInterval, pollInterval: pollInterval, client: client}
+func worker(jobs <-chan func() error) {
+	for j := range jobs {
+		err := j()
+
+		if err != nil {
+			logger.Log.Warn(
+				"Error on sending to server",
+				zap.Error(err),
+			)
+		}
+	}
+}
+
+func NewAgent(client *client.Client, reportInterval, pollInterval, rateLimit uint) (a *Agent) {
+	a = &Agent{reportInterval: reportInterval, pollInterval: pollInterval, client: client,
+		rateLimit: rateLimit,
+	}
 	runtime.ReadMemStats(&a.ms)
+	a.vm, _ = mem.VirtualMemory()
+	CPUutilization, _ := cpu.Percent(0, false)
+	a.CPUutilization = CPUutilization[0]
 	return
 }

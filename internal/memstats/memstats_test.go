@@ -4,7 +4,9 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetMemStatsForServer(t *testing.T) {
@@ -58,4 +60,16 @@ func getWantStringsMS() map[string]float64 {
 		"TotalAlloc":    0,
 	}
 
+}
+
+func TestGetVirtualMemoryForServer(t *testing.T) {
+	vm, err := mem.VirtualMemory()
+	require.NoError(t, err)
+	t.Run("positive test", func(t *testing.T) {
+		gotStringsVM := GetVirtualMemoryForServer(vm)
+		assert.Equal(t, map[string]float64{
+			"TotalMemory": float64(vm.Total),
+			"FreeMemory":  float64(vm.Free),
+		}, gotStringsVM)
+	})
 }

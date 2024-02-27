@@ -42,7 +42,7 @@ func TestSendGauge(t *testing.T) {
 			ts := httptest.NewServer(http.HandlerFunc(tt.handler))
 			defer ts.Close()
 
-			c := NewClient(strings.TrimPrefix(ts.URL, "http://"))
+			c := NewClient(strings.TrimPrefix(ts.URL, "http://"), "")
 			err := c.SendGauge(context.Background(), tt.args.name, tt.args.value)
 
 			if tt.wantErr {
@@ -55,7 +55,7 @@ func TestSendGauge(t *testing.T) {
 	}
 
 	t.Run("test brocken server", func(t *testing.T) {
-		c := NewClient("test")
+		c := NewClient("test", "")
 		err := c.SendGauge(context.Background(), "test", 1.1)
 
 		assert.Error(t, err)
@@ -94,7 +94,7 @@ func TestSendCounter(t *testing.T) {
 			ts := httptest.NewServer(http.HandlerFunc(tt.handler))
 			defer ts.Close()
 
-			c := NewClient(strings.TrimPrefix(ts.URL, "http://"))
+			c := NewClient(strings.TrimPrefix(ts.URL, "http://"), "")
 			err := c.SendCounter(context.Background(), tt.args.name, tt.args.delta)
 
 			if tt.wantErr {
@@ -107,7 +107,7 @@ func TestSendCounter(t *testing.T) {
 	}
 
 	t.Run("test brocken server", func(t *testing.T) {
-		c := NewClient("test")
+		c := NewClient("test", "")
 		err := c.SendCounter(context.Background(), "test", 1)
 
 		assert.Error(t, err)
